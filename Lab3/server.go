@@ -11,13 +11,16 @@ const INDEX_HTML = `
     <html lang="ru">
         <head>
             <meta charset="utf-8">
-            <title>Последние новости с lenta.ru</title>
+            <title>Курс крипты</title>
         </head>
         <body>
             {{if .}}
                 {{range .}}
-                    {{.Time}}
-                    <a href="https://glav.su/{{.Ref}}">{{.Title}}</a>
+                    <a href="https://coinmarketcap.com{{.Ref}}"> {{.Title}}</a>
+						<div>
+							{{.Time}}
+
+						<div/>
                     <br/>
                 {{end}}
             {{else}}

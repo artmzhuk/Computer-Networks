@@ -4,6 +4,9 @@ import (
 	log "github.com/mgutz/logxi/v1"
 	"golang.org/x/net/html"
 	"net/http"
+	"sort"
+	"strconv"
+	"strings"
 )
 
 func getAttr(node *html.Node, key string) string {
@@ -37,6 +40,7 @@ func isDiv(node *html.Node, class string) bool {
 
 type Item struct {
 	Ref, Time, Title string
+	val              int64
 }
 
 func readItem(item *html.Node) *Item {
@@ -53,24 +57,46 @@ func readItem(item *html.Node) *Item {
 }
 
 func search(node *html.Node) []*Item {
-	if isDiv(node, "bl-fbt") {
+	if isDiv(node, "sc-66133f36-2 cgmess") {
+		counter := 0
 		var items []*Item
-		for c := node.FirstChild; c != nil; c = c.NextSibling {
-			if isElem(c, "ul") {
+		for c := node.FirstChild.FirstChild.NextSibling.NextSibling; c != nil; c = c.NextSibling {
+			if isElem(c, "tbody") {
 				for ch := c.FirstChild; ch != nil; ch = ch.NextSibling {
-					if isElem(ch, "li") {
-						a := ch.FirstChild.NextSibling.FirstChild.NextSibling
-						url := getAttr(a, "href")
-						t := a.FirstChild.Data
-						items = append(items, &Item{
-							Ref:   url,
-							Time:  "777",
-							Title: t,
-						})
+					if isElem(ch, "tr") {
+						currency := ch.FirstChild.NextSibling.NextSibling.FirstChild.FirstChild
+
+						if currency.Data != "span" {
+							currCap := ch.LastChild.PrevSibling.PrevSibling.FirstChild.FirstChild.FirstChild.FirstChild.Data
+							url := getAttr(currency, "href")
+							currName := currency.FirstChild.LastChild.FirstChild.FirstChild.FirstChild.Data
+							//t := currency.FirstChild.Data
+							val, _ := strconv.ParseInt(strings.Replace(currCap[1:], ",", "", -1), 10, 64)
+							items = append(items, &Item{
+								Ref:   url,
+								Time:  currCap,
+								Title: currName,
+								val:   val,
+							})
+						} else if counter < 99 {
+							url := getAttr(currency.Parent, "href")
+							currName := currency.Parent.FirstChild.NextSibling.FirstChild.Data
+							//t := currency.FirstChild.Data
+							items = append(items, &Item{
+								Ref:   url,
+								Time:  "¯\\_(ツ)_/¯",
+								Title: currName,
+								val:   0,
+							})
+						}
+						counter++
 					}
 				}
 			}
 		}
+		sort.SliceStable(items, func(i, j int) bool {
+			return items[i].val > items[j].val
+		})
 		return items
 	}
 	for c := node.FirstChild; c != nil; c = c.NextSibling {
@@ -82,18 +108,18 @@ func search(node *html.Node) []*Item {
 }
 
 func downloadNews() []*Item {
-	log.Info("sending request to lenta.ru")
-	if response, err := http.Get("https://glav.su/forum"); err != nil {
-		log.Error("request to lenta.ru failed", "error", err)
+	log.Info("sending request ")
+	if response, err := http.Get("https://coinmarketcap.com/"); err != nil {
+		log.Error("request failed", "error", err)
 	} else {
-		defer response.Body.Close()
+		//defer response.Body.Close()
 		status := response.StatusCode
-		log.Info("got response from lenta.ru", "status", status)
+		log.Info("got response ", "status", status)
 		if status == http.StatusOK {
 			if doc, err := html.Parse(response.Body); err != nil {
-				log.Error("invalid HTML from lenta.ru", "error", err)
+				log.Error("invalid HTML from ", "error", err)
 			} else {
-				log.Info("HTML from lenta.ru parsed successfully")
+				log.Info("HTML  parsed successfully")
 				return search(doc)
 			}
 		}
